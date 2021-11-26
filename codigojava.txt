@@ -1,0 +1,293 @@
+package com.molamosmucho.gluglu;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.audio.Sound;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.ApplicationAdapter;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Circle;
+import com.badlogic.gdx.math.Intersector;
+import com.badlogic.gdx.math.Rectangle;
+
+import java.util.Random;
+
+public class GlugluMikelAngelo extends ApplicationAdapter {
+	SpriteBatch batch;
+	Texture background;
+	Texture[] scale;
+	int flapState = 0;
+	float CharacterY;
+	int gameState = 0;
+	float velocity = 0;
+	float gravity = 2;
+	Texture topkelpscale;
+	Texture bottomkelpscale;
+	Texture topkelp;
+	Texture bottomkelp;
+	int numberOfkelps = 4;
+	float gap = 400;
+	float[] kelpOffset = new float[numberOfkelps];
+	Random random = new Random();
+	float[] kelpX = new float[numberOfkelps];
+	float tubeVelocity = 4;
+	float distanceBetweenkelp;
+	Texture[] mikelangelo;
+	Texture gameOver;
+	Texture lostbg;
+	int scores = 0;
+	int scoringkelp = 0;
+	BitmapFont bitmapFont;
+	ShapeRenderer shapeRenderer;
+	Circle circle;
+	Rectangle[] topKelpRectangle;
+	Rectangle[] bottomkelpRectangle;
+	Music music;
+	Sound sound;
+	Sound swim;
+
+	@Override
+	public void create () {
+		//declaraciones globales
+		//declaramos el batch que es con lo que renderizamos
+		batch = new SpriteBatch();
+		//declaramos el background
+		background = new Texture("bg.gif");
+		//declaramos un escalimetro que usaremos para nuestro personaje
+		scale = new Texture[2];
+		scale[0] = new Texture("bird.png");
+		scale[1] = new Texture("bird2.png");
+		//declaramos nuestro personaje y sus estados (estatico y en salto)
+		mikelangelo= new Texture[2];
+		mikelangelo[0]=new Texture("cachamessi.png");
+		mikelangelo[1]=new Texture("mikelangelo.png");
+		//declaramos la escala de las algas de arriba y de abajo
+		bottomkelpscale = new Texture("bottomtube.png");
+		topkelpscale = new Texture("toptube.png");
+		//declaramos las algas de arriba y de abajo
+		topkelp=new Texture("kelp.png");
+		bottomkelp=new Texture("kelpb.png");
+		//declaramos la imagen de gameover y el background
+		gameOver = new Texture("gameOver.png");
+		lostbg= new Texture("gmbg.png");
+		//declaramos nuestra musica de fondo
+		music = Gdx.audio.newMusic(Gdx.files.internal("bgmusic.mp3"));
+		//DECLARAMOS EL BITMAP CON EL QUE DIBUJAMOS EL SCORE
+		bitmapFont = new BitmapFont();
+		bitmapFont.setColor(Color.WHITE);
+		bitmapFont.getData().scale(10);
+		//con shape render declaramos las areas de los objetos
+		shapeRenderer = new ShapeRenderer();
+		//declaramos el area que usaremos como hitbox del objeto es un circulo invisible al rededor de nuestro personaje que se mueve con el
+		circle = new Circle();
+		//declaaramos las areas que usaremos de hitbox para las algas siendo rectangulos invisibles al rededor de ellas
+		topKelpRectangle = new Rectangle[numberOfkelps];
+		bottomkelpRectangle = new Rectangle[numberOfkelps];
+		//DECLAramos la distancia entre las kelps
+		distanceBetweenkelp = (float) (Gdx.graphics.getWidth() / 2 );
+
+		//declaramos la posicion inicial de nuestro personaje
+		CharacterY = Gdx.graphics.getHeight() / 2 - scale[flapState].getHeight() / 2;
+		//damos inicio a la musica
+		 //music.play();
+		 sound= Gdx.audio.newSound(Gdx.files.internal("oof.mp3"));
+		swim= Gdx.audio.newSound(Gdx.files.internal("swim.mp3"));
+		// este for se encarga de crear las n algas con su posicion en x y en y siendo la posicion y aleatroria
+		for (int i = 0; i < numberOfkelps; i++) {
+
+			kelpOffset[i] = (random.nextFloat() - 0.5f) * (Gdx.graphics.getHeight() - gap - 200);
+
+
+			kelpX[i] = (float) (Gdx.graphics.getWidth() / 2 - topkelpscale.getWidth() / 2 + Gdx.graphics.getWidth()
+					+ i * distanceBetweenkelp);
+
+			topKelpRectangle[i] = new Rectangle();
+			bottomkelpRectangle[i] = new Rectangle();
+
+		}
+
+	}
+	//damos inicio al juego despues de perder (to do esto se hace tambien en una iteracion inicial)
+	public void gameStart() {
+		//music.play();
+		//reinicializamos el personaje desde donde estuviera o halla perdido al centro
+		CharacterY = Gdx.graphics.getHeight() / 2 - scale[flapState].getHeight() / 2;
+		//inicializamos el contador para saber cuantas algas superamos
+		scoringkelp = 0;
+		scores = 0;
+		//inicializamos la velocidad a 0 para que este estatico en la posicion del centro
+		velocity = 0;
+		//declaramos las algas
+		for (int i = 0; i < numberOfkelps; i++) {
+
+			kelpOffset[i] = (random.nextFloat() - 0.5f) * (Gdx.graphics.getHeight() - gap - 200);
+
+
+			kelpX[i] = Gdx.graphics.getWidth() / 2 - topkelpscale.getWidth() / 2 + Gdx.graphics.getWidth()
+					+ i * distanceBetweenkelp;
+
+			topKelpRectangle[i] = new Rectangle();
+			bottomkelpRectangle[i] = new Rectangle();
+
+		}
+	}
+// renderizamos nuestro escenario
+	@Override
+	public void render () {
+		//iniciamos a dibujar colocamos el pincel (batch) en la posicion inicial (0,0) en el plano que nos demostraron en clase
+		batch.begin();
+		//dibujamos el braground y lo hacemos del tamaño de la pantalla
+		batch.draw(background,0,0,Gdx.graphics.getWidth() , Gdx.graphics.getHeight());
+		//modo de juego iniciado nos encontramos en pleno juego
+		if (gameState == 1) {
+			//si nos tocaron salamos
+			if (Gdx.input.justTouched()) {
+				swim.play(0.5f);
+				velocity = -25;
+			}
+			//si atravesamos un alga sumamos el escore
+			if (kelpX[scoringkelp] < Gdx.graphics.getWidth() / 2) {
+
+				scores++;
+				//hacemos el modulo de scoring kelps constantemente ara saber cual es la siguiente alga y saber que alga debemos pasar para sumar el score
+				if (scoringkelp < numberOfkelps - 1) {
+
+					scoringkelp++;
+
+				} else {
+
+					scoringkelp = 0;
+
+				}
+
+			}
+			//mantenemos las algas en movimiento cambiando su posicion en x
+			for (int i = 0; i < numberOfkelps; i++) {
+
+				if (kelpX[i] < -topkelpscale.getWidth()) {
+
+					kelpX[i] += numberOfkelps * distanceBetweenkelp;
+
+				} else {
+
+					kelpX[i] -= tubeVelocity;
+
+				}
+				//dibujamos las algas superiores e inferiores
+				batch.draw(topkelp, kelpX[i],
+						Gdx.graphics.getHeight() / 2  + gap / 2 + kelpOffset[i], topkelpscale.getWidth(), topkelpscale.getHeight());
+				batch.draw(bottomkelp, kelpX[i],
+						Gdx.graphics.getHeight() / 2 - gap / 2 - bottomkelpscale.getHeight() + kelpOffset[i], bottomkelpscale.getWidth(), bottomkelpscale.getHeight());
+				//dibujamos los rectangulos invisibles que usaremos como hitbox
+				topKelpRectangle[i] = new Rectangle(kelpX[i],
+						Gdx.graphics.getHeight() / 2  + gap / 2 + kelpOffset[i],
+						topkelpscale.getWidth(),
+						topkelpscale.getHeight());
+				bottomkelpRectangle[i] = new Rectangle(kelpX[i],
+						Gdx.graphics.getHeight() / 2 - gap / 2 - bottomkelpscale.getHeight() + kelpOffset[i],
+						bottomkelpscale.getWidth(),
+						bottomkelpscale.getHeight());
+			}
+			//revisamos no haber tocado el suelo
+			if (CharacterY > 0) {
+				velocity += gravity;
+				CharacterY -= velocity;
+			} else {
+			//si tocamos el suelo perdemos
+				gameState = 2;
+				sound.play(0.5f);
+				//music.stop();
+
+			}
+
+
+			//hacemos la animacion de nado
+			if (flapState == 0) {
+				flapState = 1;
+			} else {
+				flapState = 0;
+			}
+
+		} else if(gameState == 0) {
+			//estado de juego 0 estamos estaticos en el centro de la pantalla esperando a que toquen la pantalla para iniciar
+			//justtouched revisa si han tocado la pantalla
+			if (Gdx.input.justTouched()) {
+				swim.play(0.5f);
+				//cambiamos el modo de juego
+				gameState = 1;
+				//music.play();
+			}
+
+		} else if (gameState == 2) {
+			//se ha tocado un alga pasamos al estado de juego de derrota
+			//dibujamos nuestro backgraund de derrota
+			batch.draw(lostbg,0,
+					0,Gdx.graphics.getWidth(),Gdx.graphics.getHeight());
+			//dibujamos el mensaje de derrota
+			batch.draw(gameOver,Gdx.graphics.getWidth() / 2 - gameOver.getWidth() / 2,
+					Gdx.graphics.getHeight() / 2 - gameOver.getHeight() / 2);
+			//si tocan de nuevo la pantalla quieren volver a jugar
+			if (Gdx.input.justTouched()) {
+			//pasamos a estado de juego
+				swim.play(0.5f);
+				gameState = 1;
+			//reinicializamos todo nuestro escenario
+				gameStart();
+
+			}
+
+		}
+		//dibujamos a mikelangelo
+		batch.draw(mikelangelo[flapState],Gdx.graphics.getWidth() / 2 - scale[flapState].getWidth() / 2 ,
+				CharacterY, scale[flapState].getWidth(), scale[flapState].getHeight());
+		//dibujamos el score actual
+		bitmapFont.draw(batch,Integer.toString(scores),200,200);
+
+		batch.end();
+		//dibujamos el circulo de hitbox
+		circle.set(Gdx.graphics.getWidth() / 2
+				, CharacterY + scale[flapState].getWidth() / 2
+				, scale[flapState].getWidth() / 2);
+		//dibujamos el circulo invisible para el debugging
+		//shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+		//shapeRenderer.setColor(Color.RED);
+		//shapeRenderer.circle(circle.x,circle.y,circle.radius);
+		for (int i = 0; i < numberOfkelps; i++) {
+			/*
+			//codigo de pruebas los rectangulos invisibles no son invisibles
+			shapeRenderer.rect(tubeX[i],
+					Gdx.graphics.getHeight() / 2  + gap / 2 + tubeOffset[i],
+					topTube.getWidth(),
+					topTube.getHeight());
+			shapeRenderer.rect(tubeX[i],
+					Gdx.graphics.getHeight() / 2 - gap / 2 - bottomTube.getHeight() + tubeOffset[i],
+					bottomTube.getWidth(),
+					bottomTube.getHeight());
+			*/
+			//revisamos que la hitbox del jugador y de las algas no choquen si chocan lo pasamos al estado de game over
+			if (Intersector.overlaps(circle, topKelpRectangle[i])
+					|| Intersector.overlaps(circle, bottomkelpRectangle[i]) ) {
+
+				gameState = 2;
+				sound.play(0.5f);
+				//music.stop();
+
+			}
+
+		}
+		//dibujamos el plano de golpe
+		shapeRenderer.end();
+
+	}
+
+	@Override
+	public void dispose () {
+		//lo que no este en el plano lo deja de dibujar
+		batch.dispose();
+		sound.dispose();
+
+	}
+}
